@@ -1,0 +1,27 @@
+{% extends "skeleton/_base.html" %}
+
+{% block container_class %}post page{% endblock %}
+
+{% block container %}
+  <div class="heading container">
+    <div class="column span-17" >
+        <div class="title">
+            <h1>{{ page.title|safe }}</h1>
+        </div>
+        <div class="content">
+            {% markdown %}
+	            {% block article %}{% endblock %}
+            {% endmarkdown %}
+        </div>
+    </div>
+    <div class="column span-7 last">
+        {% include "skeleton/_post_menu.html" %}
+        {% include "skeleton/_contacts.html" %}
+        {% include "skeleton/_pages_menu.html" %}
+    </div>
+  </div>
+  <div class="footer container">
+      {% include "skeleton/_footer.html" %}
+  </div>
+{% endblock %}
+

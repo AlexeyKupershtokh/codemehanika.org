@@ -1,0 +1,6 @@
+<div class="context-nav">
+    <b>Навигация</b><br />
+    {% if page.prev %}&rArr; <a href="{{ page.prev.url }}">{{ page.prev.title }}</a><br />{% endif %}
+    {% if page.next %}&lArr; <a href="{{ page.next.url }}">{{ page.next.title }}</a>{% endif %}
+</div>
+

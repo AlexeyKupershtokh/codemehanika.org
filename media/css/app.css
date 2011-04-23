@@ -1,0 +1,148 @@
+@import url(http://fonts.googleapis.com/css?family=Droid+Sans);
+
+a:visited {}
+a:hover { color: brown; }
+
+.heading {
+    margin-top: 20px;
+}
+
+.content, .categories, .title, .footer {
+    font-family: Tinos, Georgia, Times New Roman, serif;
+    font-size: 18px;
+}
+
+.heading div.title h1 {
+  font-weight: bold;
+  margin-bottom: 30px;
+  font-size: 70px;
+  line-height: 80px;
+  letter-spacing: -0.05em;
+}
+
+.post .heading div.title h1 {
+  font-weight: bold;
+  margin-bottom: 50px;
+  font-size: 40px;
+  line-height: 45px;
+  letter-spacing: -0.05em;
+}
+
+.heading div.contacts {
+    float: right;
+    text-align: right;
+}
+
+.title p.snip {
+    color: gray;
+}
+
+div.robot {
+    position: relative;
+    top: -220px;
+    right: -840px;
+    width: 150px;
+    background: url(/media/images/robot.png) no-repeat;
+    height: 200px;
+}
+
+.page div.robot {
+    display: none;
+}
+
+.post h3  {
+    margin-top: 1em;
+    font-weight: bold;
+}
+
+.post h3:first-child  {
+    margin-top: 0em;
+}
+
+.posts-container {
+    padding-left: 70px;
+}
+
+.posts .entry {
+    margin: 0 0 10px 0;
+}
+
+.posts .entry span.date {
+    margin: 0 0 0 -71px;
+    font-size: 100%;
+    color: brown;
+}
+
+.posts .entry span.tag {
+    padding: 0;
+}
+
+.content p {
+    margin: 0 0 1.1em;
+}
+
+.content p.bordered {
+    margin: 0 0 1.5em;
+}
+
+.tag {
+    font-size: 14px;
+    padding: 1px 3px 1px 3px;
+}
+
+.date {
+    font-size: 16px;
+    padding: 1px 3px 1px 0px;
+    margin-right: 7px;
+    color: brown;
+}
+
+.project a.title {
+    font-size: 24px;
+}
+
+.project .links {
+    font-size: 14px;
+    float: right;
+}
+
+.project .links a {
+    color: brown;
+}
+
+.project .links a:hover {
+    color: #06C;
+}
+
+.project p.description {
+    margin-bottom: 2em;
+}
+
+.footer {
+    margin-top: 35px;
+    border-top: 1px solid gray;
+    padding-top: 10px;
+}
+
+.footer .off p {
+    font-weight: bold;
+    font-size: 25px;
+    letter-spacing: -0.05em;
+    float: right;
+}
+
+pre {
+    margin: 1em 0;
+    font-size: 12px;
+    background-color: #EEE;
+    border: 1px solid #DDD;
+    padding: 5px;
+    line-height: 1.5em;
+    color: #444;
+    overflow: auto;
+    -webkit-box-shadow: rgba(0, 0, 0, 0.07) 0 1px 2px inset;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+}
+

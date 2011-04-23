@@ -1,0 +1,43 @@
+{% extends "_splash.html" %}
+
+{% hyde
+    title: "Debug Mode as Life Style"
+%}
+
+{% block content %}
+    <div class="column span-12 posts">
+        <h2>Articles.Read() &dArr;</h2>
+        <div class="posts-container">
+          {% recent_posts recents 10 page.blog_node %}
+
+          {% for post in recents %}
+            <div class="entry">
+              <span class="date">{{ post.created|date:"d.m.y" }}</span>
+              <a href="{{ post.full_url }}" class="title">{{ post.title }}</a>
+              {% if post.categories %}<br /><span class="tag">{{ post.categories }}</span>{% endif %}
+            </div>
+          {% endfor %}
+          <p>...</p>
+          <p><a href="/blog">Articles.All()</a></p>
+        </div>
+    </div>
+            <div class="column span-12 last project">
+                <h2>Source.Open() &dArr;</h2>
+                <p><a href="#" class="title">Zend\Console v.2.0</a>
+                   <span class="links"><a href="#">Размышления</a> | <a href="https://github.com/kachayev/zf2" target="_blank">Github</a></span></p>
+                <p class="description">Мой вклад в создание ZF2.0: описание концепции и причин рефакторинга компоненты, новости, комментарии, размышления</p>
+
+                <p><a href="#" class="title">lib-get</a>
+                   <span class="links"><a href="https://github.com/kachayev/lib-get/blob/master/README.md" target="_blank">Документация</a> | <a href="https://github.com/kachayev/lib-get" target="_blank">Github</a></span></p>
+                <p class="description">Утилита для управления версиями сторонних библиотек используемых в проекте, автоматизирует большую часть операций связанных с установкой, апдейтом, линкованием библиотек, а также умеет самостоятельно находить самые свежии версии</p>
+
+                <p><a href="#" class="title">ZF Head Compressor</a>
+                   <span class="links"><a href="https://github.com/kachayev/zend-fw-head-compressor/blob/master/README.md" target="_blank">Документация</a> | <a href="https://github.com/kachayev/zend-fw-head-compressor" target="_blank">Github</a></span></p>
+                <p class="description">Библиотека для минимизациия, слияния и сжатия JS и CSS файлов с целью уменьшения времени загрузки страницы. Работает на основе HeadScript, HeadStyle, InlineScript helper-ов, внедрение в проект не занимает больше минуты</p>
+
+                <p><a href="#" class="title">PyConsole</a>
+                   <span class="links"><a href="https://github.com/kachayev/py-console/blob/master/README" target="_blank">Документация</a> | <a href="https://github.com/kachayev/py-console" target="_blank">Github</a></span></p>
+                <p class="description">Небольшой python модуль, облегчающий создание console-ных приложений, берет на себя ответственность за анализ аргументов и предоставляет различные способы оформления вывода</p>
+            </div>
+{% endblock %}
+

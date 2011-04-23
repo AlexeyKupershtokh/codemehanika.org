@@ -1,0 +1,33 @@
+{% extends "skeleton/_root.html" %}
+
+{% block all %}
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>{%  block title %}{% block extra_title %}{% endblock %}{{ page.title|safe }} / {{ site.name }} {% endblock %}</title>
+
+    {% block feeds %}{% endblock %}
+
+    {% block css %}
+        <!-- Framework CSS -->
+        <link rel="stylesheet" href="/media/css/blueprint/screen.css" type="text/css" media="screen, projection">
+        <link rel="stylesheet" href="/media/css/blueprint/print.css" type="text/css" media="print">
+        <!--[if lt IE 8]><link rel="stylesheet" href="/media/css/blueprint/ie.css" type="text/css" media="screen, projection"><![endif]-->
+        <link rel="stylesheet" href="/media/css/app.css" type="text/css" media="screen, projection">
+    {% endblock %}
+
+  </head>
+  <body>
+    <div class="container showgrid {% block container_class %}{% endblock %}">
+        {% block container %}{% endblock %}
+    </div>
+  </body>
+
+    {% block js %}
+        <script type="text/javascript" src="http://code.jquery.com/jquery-1.5.2.min.js"></script>
+        {% block additional_js %}{% endblock %}
+    {% endblock %}
+</html>
+{% endblock %}
+

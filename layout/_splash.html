@@ -1,0 +1,18 @@
+{% extends "skeleton/_main.html" %}
+
+{% block header %}
+    <div class="column span-17" >
+      <div class="title">
+        <h1>{{ site.name }}</h1>
+        <p>О программировании, коде, технологиях и фреймворках. Без суеверий и предубеждений.</p>
+      </div>
+      {% block categories %}
+        {% include "skeleton/_categories.html" %}
+      {% endblock %}
+    </div>
+    <div class="column span-7 last">
+        {% include "skeleton/_contacts.html" %}
+        {% include "skeleton/_pages_menu.html" %}
+    </div>
+{% endblock %}
+

@@ -1,0 +1,65 @@
+{% extends "_splash.html" %}
+
+{% hyde
+    title: 'Полный список статей / '
+%}
+
+{% block content %}
+    <div class="column span-24 last project">
+        <h2>Articles.All(<span></span>) &dArr;</h2>
+
+        {% recent_posts recents 1000 page.blog_node %}
+
+        {% for post in recents %}
+          {% if post.published %}
+            <p><span class="date">{{ post.created|date:"d.m.y" }}</span>
+                <a href="{{ post.full_url }}">{{ post.title }}</a>
+                {% if post.categories %}&nbsp;| <span class="tag">{{ post.categories }}</span>{% endif %}
+            </p>
+          {% endif %}
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block additional_js %}
+<script type="text/javascript">
+    Tag = {
+        current: null,
+
+        selector: {
+            tag: 'span.tag:contains("{tag}")',
+            full: '.project p',
+            title: '.project h2 span'
+        },
+
+        init: function() {
+            if(window.location.hash) {
+                this.current = window.location.hash.substring(1).replace('_', ' ');
+            }
+
+            return this;
+        },
+
+        show: function() {
+            if (null == this.current) {
+                this.title('');
+                return false;
+            }
+
+            // Show only relative to current tag articles
+            $(this.selector.full).hide();
+            $(this.selector.tag.replace('{tag}', this.current)).parent().show('slow');
+
+            // Set title for Articles header
+            this.title('tag="' + this.current + '"');
+        },
+
+        title: function(tag) {
+            $(this.selector.title).text(tag);
+        }
+    }
+
+    Tag.init().show();
+</script>
+{% endblock %}
+
