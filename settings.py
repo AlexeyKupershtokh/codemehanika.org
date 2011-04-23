@@ -12,7 +12,7 @@ BACKUPS_DIR = here('backups')
 BACKUP = True
 
 SITE_ROOT = "/"
-SITE_WWW_URL = "http://codemehanika.loc:8080"
+SITE_WWW_URL = "http://codemehanika.loc"
 SITE_NAME = "CODE MEHANIKA"
 SITE_AUTHOR = "Alexey S. Kachayev"
 
