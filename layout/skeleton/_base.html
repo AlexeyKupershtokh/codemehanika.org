@@ -16,7 +16,7 @@
         <!--[if lt IE 8]><link rel="stylesheet" href="/media/css/blueprint/ie.css" type="text/css" media="screen, projection"><![endif]-->
         <link rel="stylesheet" href="/media/css/app.css" type="text/css" media="screen, projection">
     {% endblock %}
-
+    <link href="{{ site.full_url }}/blog/atom.xml" rel="alternate" title="Feed / {{ site.name }}" type="application/atom+xml">
   </head>
   <body>
     <div class="container showgrid {% block container_class %}{% endblock %}">
