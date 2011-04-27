@@ -5,10 +5,269 @@
     created: 2011-04-22
     published: False
     categories: "Zend Framework, Code perfectum"
-    display_in_list: False
+    display_in_list: True
+    snip: "Если у вас в проекте есть большие и сложные формы, функционирующие на основе Zend_Form, то вы должно было обращали внимание - со временем код таких форм становиться сложным, запутанным и нечитабельным. В данной статье я опишу то, как можно сохранять формы понятными."
 %}
 
 {% block article %}
-Тут будет длинное описание
+
+### 1. Разбиваем код на логические блоки
+
+В чем основная проблема кода комплексных и нетривиальных форм? Большое количество элементов наполняют код класса однотипными блоками вроде
+
+    // ...
+    $this->name = new Zend_Form_Element_Text(/** .. */);
+    $this->surname = new Zend_Form_Element_Text(/** .. */);
+    $this->type = new Zend_Form_Element_Select(/** .. */);
+    //..
+
+При этом к каждому элементу мы указываем параметры, валидаторы, декораторы и т.д. У меня, например, есть формы с более чем 30 элементами (при этом некоторые добавляются и заполняются в условных, некоторые в циклических конструкциях) - такое полотно кода совершенно невозможно бегло изучить.
+
+Поэтому первый совет будет следующий: разбивайте код добавления элементов на отдельные лоические блоки. Например,
+
+    public function init()
+    {
+        $this->buildElements();
+        // ... other init actions
+    }
+
+    protected function buildElements()
+    {
+        $this->buildGenericElements();
+        $this->buildConditionalElements();
+        $this->buildPriceRelativeElements();
+        $this->buildFeaturesRelativeElements();
+        $this->buildEconomySectionElements();
+        $this->buildGeoLocationElements();
+
+        // ... other logical blocks
+    }
+
+Далее в каждой из указанных функций крепим связанные в логический блок элементы. Читать форму станет на порядок легче.
+
+Сразу оговорюсь - если вы разбиваете на блоки инциализацию элементов, то на такие же блоки разбивайте кастомный функционал isValid(), populate() (если таковой в коде формы имеется).
+
+### 2. Внешние конфигураторы
+
+Если разделения на функции из предыдущего примера не достаточно - мы можем пойти дальше и воспользоваться тем, что элементы добавляются как public свойста. Поэтому мы можем поручить конфигурирование элементов отдельному классу.
+
+    // application/forms/User/Register.php
+    // ... other functions ...
+    public function init()
+    {
+        $configurator = new Form_User_Register_Elements();
+        $configurator->init($this);
+    }
+
+    // application/forms/User/Register/Elements.php
+    class Form_User_Register_Elements
+        implements FormElementsConfigurator
+    {
+        public function init(Zend_Form $form)
+        {
+            $form->login = new Zend_Form_Element_Text(/** some params */)
+            // ... other elements
+        }
+    }
+
+Такой подход будет особенно полезен в том случае, если код конфигуратора сделать реиспользуемым. Например, собрать туда совместную конфигурацию нескольких элементов, которые используются в нескольких формах. У меня в рабочем проекте есть группа форм Wizard-a, где подключается один и тот же набор кнопок (Next, Back, Cancel, Save). Все эти кнопки подключаются с помощью внешнего конфигуратора.
+
+    public function init()
+    {
+        // ... other actions
+
+        $buttons = new Property\Form\WizardButtons();
+        $buttons->attachTo($this);
+    }
+
+Вынесение кода инициализации элементов в отдельный класс вписывается в принцип единой ответсвенности класса и достаточно удобно на практике.
+
+### 3. Избавляемся от дублирования кода параметров элементов
+
+Дублирование это вообще плохо. В любом его проявлении. Но бывают ситуации, когда это дублирование прокрадывается в код почти незаметно - и потому напраcно игнорируется.
+
+    // ... other actions
+    $this->login = new Zend_Form_Element_Text('login', array(
+        'required' => true,
+        'class' => 'text',
+        'decorators' => array('ViewHelper', 'Label'),
+        'maxlength' => 55,
+        'label' => 'User login'
+    '));
+
+    $this->name = new Zend_Form_Element_Text('name', array(
+        'required' => true,
+        'class' => 'text',
+        'decorators' => array('ViewHelper', 'Label'),
+        'maxlength' => 55,
+        'label' => 'First name'
+    '));
+
+    $this->surname = new Zend_Form_Element_Text('surname', array(
+        'required' => true,
+        'class' => 'text',
+        'decorators' => array('ViewHelper', 'Label'),
+        'maxlength' => 55,
+        'label' => 'Second name'
+    '));
+    // ... other actions
+
+Обратите внимание на постоянное дублирование параметров добавляемых элементов. Думаю не нужно объяснять почему это плохо. Как с этим бороться? Как минимум два способа.
+
+Мы можем вынести дублированные параметры отдельно, остальное мержить:
+
+    $standardParams = array('required' => true,
+                            'class' => 'text',
+                            'decorators' => array('ViewHelper', 'Label'),
+                            'maxlength' => 55);
+
+    $this->login = new Zend_Form_Element_Text('login',
+                                              array_merge($standardParams,
+                                                          array('label'=>'User login')));
+
+    $this->name = new Zend_Form_Element_Text('name',
+                                             array_merge($standardParams,
+                                                         array('label'=>'First name')));
+
+    $this->surname = new Zend_Form_Element_Text('surname',
+                                                array_merge($standardParams,
+                                                            array('label'=>'Second name')));
+
+
+А если позволяет ситуация, мы можем пойти и дальше:
+
+    $standardParams = array('required' => true,
+                            'class' => 'text',
+                            'decorators' => array('ViewHelper', 'Label'),
+                            'maxlength' => 55);
+
+    $elements = array('login'=>'User login',
+                      'name'=>'First name',
+                      'surname'=>'Second name');
+
+    foreach($elements as $element => $label) {
+        $this->$element = new Zend_Form_Element_Text($element,
+                                                     array_merge($standardParams,
+                                                                 array('label'=>$label)))
+    }
+
+
+### 4. Избавляемся от дублирования списков декораторов и валидаторов
+
+Ситуация здесь аналогична предыдущей: зачастую для большинства элементов мы используем схожие (а то и одинаковые) наборы декораторов и валидаторов. Настоятельно рекомендую собирать подобные массивы в отдельные переменные (или protected свойства класса формы) и реиспользовать при каждом удобном случае.
+
+Типичный пример,
+
+    $this->rooms = new Zend_Form_Element_Text('rooms', array(
+        // ... some params
+        'decorators' => array('ViewHelper', 'Label', new My_Custom_Tooltip('left', 'slow'))
+    ));
+
+    $this->bedrooms = new Zend_Form_Element_Text('bedrooms', array(
+        // ... some other params
+        'decorators' => array('ViewHelper', 'Label', new My_Custom_Tooltip('left', 'slow'))
+    ));
+
+    $this->bathrooms = new Zend_Form_Element_Text('batrooms', array(
+        // ... some additional params
+        'decorators' => array('ViewHelper', 'Label', new My_Custom_Tooltip('left', 'slow'))
+    ));
+
+Гораздо приятнее и проще в поддержке будет:
+
+    $this->_defaultDecorators = array('ViewHelper','Label',new My_Custom_Tooltip('left', 'slow'));
+
+    // .. different elements
+
+    $this->rooms = new Zend_Form_Element_Text('rooms', array(
+        // ... some params
+        'decorators' => $this->_defaultDecorators
+    ));
+
+    $this->bedrooms = new Zend_Form_Element_Text('bedrooms', array(
+        // ... some other params
+        'decorators' => $this->_defaultDecorators
+    ));
+
+    $this->bathrooms = new Zend_Form_Element_Text('batrooms', array(
+        // ... some additional params
+        'decorators' => $this->_defaultDecorators
+    ));
+
+Как и в прошлом примере, при необходимости добавления дополнительных декораторов, можно легко сделать merge с основным списком.
+
+### 5. Выносим в отдельный класс реиспользуемую валидацию
+
+Часто в формах попадаются элементы со сходными списками валидаторов. Избежать дублирования таких списков можно описанным в п.4 способом, но иногда есть смысл пойти дальше - вынести подобного рода валидацию в специальный кастомный валидатор. Это полезно и удобно делать в тех случаях, если валидационный case повторяется в нескольких формах. Например, у меня во многих формах есть поля:
+
+* имя/фамилия (валидирование длины и символов),
+* географические названия чаще всего валидируются одинаково (длина, символы),
+* денежные суммы (формат записи, неотрицательность, число с плавающей точкой),
+* и т.д.
+
+Вместо того, чтобы писать в каждом случае
+
+    $this->name = new Zend_Form_Element_Text('name', array(
+        // ... params
+        'validators' => array(new Zend_Validate_Regex("/[\w\ \-\'\`]/i"),
+                              array('StringLength', false, array(1,255)))
+    ));
+
+Мы можем воспользовать механизмом [Validators Chain](http://framework.zend.com/manual/en/zend.validate.validator_chains.html):
+
+    // library/App/Validator/Name.php
+    class App_Validator_Name
+        extends Zend_Validate
+    {
+        public function __construct()
+        {
+            parent::__construct();
+
+            $this->addValidator(new Zend_Validate_Regex("/[\w\ \-\'\`]/i"));
+            $this->addValidator(/** other necessary validators */);
+        }
+    }
+
+Теперь этот цепочку этих валидаторов мы можем использовать как один:
+
+    $this->name = new Zend_Form_Element_Text('name', array(
+        // ... params
+        'validators' => new App_Validator_Name()
+    ));
+
+Если цепочке валидаторов необходимы внешние параметры, то их удобно передавать как аргументы конструктора цепочки.
+
+### 6. Отделяем содержание от внешнего вида
+
+Лично меня просто коробит от подобного кода в формах:
+
+    $this->login = new Zend_Form_Element_Text('login');
+
+    $this->login->addDecorator('ViewHelper')
+                ->addDecorator('DisplayError')
+                ->addDecorator('Label')
+                ->addDecorator('HtmlTag',
+                               array('tag' => 'div', 'class' => 'element'));
+
+    /** ... other elements ... */
+
+    $this->addDecorators(array(
+        array('ViewHelper'),
+        array('Errors'),
+        array('Description', array('tag' => 'p', 'class' => 'description')),
+        array('HtmlTag', array('tag' => 'dd')),
+        array('Label', array('tag' => 'dt')),
+    ));
+
+    /** ... other actions ... */
+
+Декораторы формы, это, конечно, удобная штука - но не настолько, чтобы мешать HTML с логикой работы формы. Приведенный здесь код из reference guide хоть и выглядит плохо, но достаточно прост. Если же у вас форма использует нетривиальный layout, то процесс ее послойного декорирования превращает основной класс формы в нечитаемый ад.
+
+Избежать этого достаточно легко - используйте декоратор [ViewScript](http://framework.zend.com/manual/en/zend.form.standardDecorators.html#zend.form.standardDecorators.viewScript), что даст вам возможность самостоятельно сверстать HTML-код формы, просто вставляя где нужно объекты элементов. Это дает не только безграничную свободу в оформлении внешнего вида формы, но и избавляет от гор проблем с подгонкой декораторов друг под друга.
+
+Следите за кодом. **Be perfectum**.
+
+P.S. Это первая статья из серии материалов по работе с Zend_Form.
+
 {% endblock %}
 

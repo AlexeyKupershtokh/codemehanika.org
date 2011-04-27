@@ -49,7 +49,6 @@ APPEND_SLASH = False
 # should specify css/ie for the folder name. css/* is not supported (yet).
 
 # Extensions do not support wildcards.
-
 MEDIA_PROCESSORS = {
     '*':{
         '.css':('hydeengine.media_processors.TemplateProcessor',
