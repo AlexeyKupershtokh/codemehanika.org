@@ -248,7 +248,8 @@
         {
             parent::__construct();
 
-            $this->addValidator(new Zend_Validate_Regex("/[\w" . ((self::SPACE === $mode) ? "\ " : "") . "\-\'\`]/i"));
+            $regexp = "/[\w" . ((self::SPACE === $mode) ? "\ " : "") . "\-\'\`]/i";
+            $this->addValidator(new Zend_Validate_Regex($regexp));
             $this->addValidator(/** other necessary validators */);
         }
     }
