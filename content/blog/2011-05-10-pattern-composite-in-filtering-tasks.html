@@ -46,15 +46,118 @@
 
 Небольшой комментарий к последнему пункту. Здесь имеется ввиду не только возможность быстро сменить базу данных с MySQL на какое-нибудь noSQL решение. Здесь мы говорим о простой возможности реализовать и менять хранение данных: от мелкой смены названия колонок в таблицах базы данных, до вынесения поисковой логики на Sphinx или другой поисковый демон.
 
+Давайте теперь проанализируем классический подход к решению таких задач (в рамках zf application) и посмотрим на те проблемы, которые в этом случае возникают.
+
 ### 2. Классическая схема решения
+
+# Zend_Form
+
+# SearchController
+
+# Zend_Table_Select
 
 ### 3. Любой термин доменной области должен быть выражен явно
 
 ### 4. Сбор фильтров в формах и контроллерах
 
-### 5. Использование фильтров на уровне коллекции
+### 5. Использование фильтров на уровне репозитория
 
-### 6. Использование фильтров на уровне репозитория
+### 6. Использование фильтров на уровне коллекции
+
+Если бы мы реализовывали свои приложения на 100% следуюя принципам DDD, то последнии два пункта были бы неразделимы. Согласно DDD-идеологии, репозиторий представляет из себя глобальную коллекцию, т.е. поиск по репозиторию должен представлять из себя ту же самую операцию, что и фильтрации отдельных элементов из коллекции. Технически, для нас это означало бы необходимость достать из базы данных все записи и отфильтровать их по фильтру. Но у нас есть несколько причин не делать этого :)
+
+Я специально размести поиск по репозиторию раньше, чем выборку из коллекции, потому что эта операция более "привычна" для большинства проектов. Коллекции сами по себе встречаются в архитектурах реже. Я видел очень много серьезных по размеру разработок, которые передают коллекции обычными массивами. Но это отдельная длинная история. Сейчас я просто хочу обратить ваше внимание на то, что созданные нами фильтры удобно использовать в коллекциях.
+
+Предположим вы сделали описанный выше поиск, и product owner попросил возле результатов поиска показать виджет с теми книгами из результатов, которые пользователь уже раньше просматривал. В этом случае удобно было бы воспользоваться аналогичным домен-фильтром для фильтрации уже существующей коллекции.
+
+    // ... some actions
+    $books = $bookRepository->findByFilter($searchCriteria);
+    $viewedBooks = $books->filter(new Filter\Viewer($this->getCurrentUser()));
+    // ... some other actions
+
+Внутренняя реализации подобной фильтрации коллекции обычно проще, чем Builder запросов на персист-хранилище. Самый легкий варинт - воспользоваться идее DDD спецификаций и реализовать в фильтре функцию `isSatisfiedBy()`.
+
+    // models/Domain/Book/Filter/Specification.php
+    namespace Domain\Book\Filter;
+
+    interface Specification
+    {
+        public function isSatisfiedBy(\Book\Book $entity);
+    }
+
+    // models/Domain/Book/Filter/Isbn.php
+    namespace Domain\Book\Filter;
+    use Book;
+
+    class Isbn implements Specification
+    {
+        protected $_isbn = '';
+
+        public function __construct($isbn) {
+            $this->_isbn = $isbn;
+        }
+
+        // Check if book entity has the same ISBN code as we setted throught constructor
+        public isSatisfiedBy(Book $entity) {
+            return ($this->_isbn === $entity->getIsbn());
+        }
+    }
+
+Нам также удобно будет немного допилить FilterChain, что он также поддерживал возможности специрования объектов. В коде это будет выглядить приблизительно так:
+
+    namespace Domain\Book\Filter;
+
+    use Domain\Book;
+
+    class FilterChain implements Filter, Specification
+    {
+        // ... some functions
+
+        public function isSatisfiedBy(Book $entity) {
+            foreach($this->getFilters() as $specification) {
+                // If one of filter in chain does not support specification,
+                // we should throw runtime exception
+                if (!$filter instanceof Specification) {
+                    throw new RuntimeException('Current filter chain does not support specification mechanism');
+                }
+
+                if (!$specification->isSatisfiedBy($entity)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // ... some other functions
+    }
+
+В таком случае, очень просто организовать итерацию по элементам коллекции, отбирая нужные нам элементы в отдельную саб-коллекцию. В упрощенном виде это будет выглядеть так:
+
+    namespace Domain\Book;
+
+    class BookCollection
+    {
+        // ... some functions
+
+        /**
+         * @param  Filter\Specification $specification Can be single filter or even filter chain
+         * @return BookCollection
+         */
+        public function filter(Filter\Specification $specification)
+        {
+            $subCollection = new BookCollection();
+            forech($this->getItems() as $book) {
+                if ($specification->isSatisfiedBy($book)) {
+                    $subCollection->add($book);
+                }
+            }
+
+            return $subCollection;
+        }
+
+        // ... some other functions
+    }
 
 {% endblock %}
 
