@@ -66,7 +66,7 @@
         public function init()
         {
             $this->setAction('/book/search');
-            $this->setMethod(Zend_Form::METHOD_POST);
+            $this->setMethod(Zend_Form::METHOD_GET);
 
             // добавляем элементы
             $this->isbn  = new Zend_Form_Element_Text('isbn');
