@@ -52,11 +52,128 @@
 
 ### 2. Классическая схема решения
 
-# Zend_Form
+Давайте посмотрим на типичное "ручное" решение этой задачи средствами Zend Framework.
 
-# SearchController
+**Zend_Form**
 
-# Zend_Table_Select
+Скорее всего, у нас будет некоторая форма
+
+    // application/forms/BookSearch.php
+    class Form_BookSearch extends Zend_Form
+    {
+        public function init()
+        {
+            $this->setAction('/book/search');
+            $this->setMethod(Zend_Form::METHOD_POST);
+
+            // добавляем элементы
+            $this->isbn  = new Zend_Form_Element_Text('isbn');
+            $this->title = new Zend_Form_Element_Text('title');
+            $this->author = new Zend_Form_Element_Text('author');
+
+            // .. другие элементы
+
+            $this->year  = new Zend_Form_Element_Select('year');
+            $this->genre = new Zend_Form_Element_Select('genre');
+            $this->ebook = new Zend_Form_Element_Checkbox('ebook');
+
+            // ... и еще разные элементы
+
+            // теперь подумаем про валидацию
+            // для isbn воспользуемся встроенным
+            $this->isbn->addValidator(new Zend_Validate_Isbn());
+            // год издания должен быть не больше текущего и являтся целым числом
+            $this->year->addValidator(new Zend_Validate_LessThan(date('Y')));
+            $this->year->addValidator(new Zend_Validate_Int());
+            // жанр должен входить в список известных нам жанров
+            $this->genre->addValidator(new Zend_Validate_InArray(array('haystack'=>array(/** ? */))));
+
+            // ... и т.д. еще много валидаторов
+        }
+    }
+
+**BookController**
+
+В контроллере, по идеи, никаких заморочек не должно быть. Все стандартно - приняли запрос, отправили в форму, если форма не валидна - показали пользователю ошибки. Если же форма валидна, то по всем заповедям православно-тонкого контроллера, передаем запрос в некий специализированный сервис Service_BookSearch, который будет выполнять поиск.
+
+    // application/controllers/BookController.php
+    class BookController extends Zend_Controller_Action
+    {
+        // .. некоторое экшены
+
+        public function searchAction()
+        {
+            $form = new Form_BookSearch();
+            $this->view->form = $form;
+            $this->view->results = ArrayCollection();
+
+            // недопустимый запрос
+            if (!$this->_request->isGet()) {
+                throw new Zend_Controller_Exception('GET request only');
+            }
+
+            // невалиданая форма
+            if (!$form->isValid($this->_getAllParams())) {
+                return;
+            }
+
+            // поисковый механизм
+            $searchService = new Service_BookSearch();
+            $this->view->results = $searchService->findAll($form->getValues());
+        }
+
+        // .. другие экшены
+    }
+
+На самом деле, сразу предупреждаю, - на практике контроллер почти никогда не получается таким простым (этот у нас явно сферический и в вакууме). Обычно на него подвязывается еще куча неспециализированного функционала по отношению к поиску, например ведение логов (аналитики) запросов, подсчет статистики попадания элементов в результаты поиска, пейджеры, навигация и т.д.
+
+**BookSearchService**
+
+С этой частью рассказа в Zend-е всегда сложно :) Стандартной реализации модели нет, поэтому полный простор для творчества. Я здесь не буду растекаться мыслью по древу и тянуться ко всяким модным паттернам реализации персист-независимой реализации модели. Опишу суть того, что нам нужно получить на выходе.
+
+    // application/services/BookSearch.php
+    class Service_BookSearch
+    {
+        // ... функции
+
+        public function findAll($params = array())
+        {
+            $table = new Zend_Db_Table('books');
+            $select = $table->select();
+
+            if (array_key_exists('isbn', $params)) {
+                $select->where('isbn = ?', $params['isbn']);
+            }
+
+            if (array_key_exists('title', $params)) {
+                $select->where("title LIKE %{$params['title']}"); // никогда так не делайте (!)
+            }
+
+            if (array_key_exists('year', $params)) {
+                $select->where('year >= ?', $params['year']);
+            }
+
+            // ... и еще большая куча IF, большинство из которых будет намного сложнее -
+            // особенно если вспомнить, что некоторые наши критерии берутся из другого домена,
+            // хранятся в другой таблице... и вообще обладают большим количеством собственных правил поведения
+
+            // и здесь будет некая магия обработки коллекции сущностей,
+            // которая нас сейчас не сильно волнует
+            return Model_Book_CollectionFactory::fromRowset($table->fetchAll($select));
+        }
+
+        // ... тоже функции
+    }
+
+В принципе, все это в совокупности в итоге таки будет работать. Но... С какими проблемами мы столкнемся на практике
+- длинное полотно кода формы и сервиса
+- валидация данных на уровне сервиса (положиться только на форму нельзя - это твердо свяжет поисковый запрос с формой и не позволит безопасно использовать его внутри приложения), что приведет к дублированию кода валидации
+- большое количество зависимостей в случае сложных критериев (например, хранение данных в нескольких таблицах)
+- отсутствие какой-либо гибкости - а что если завтра придется подключить в эту схему Sphinx или другой поисковый движек
+- непрозрачность интерфейса функции findAll() - мы не узнаем какие могут быть $params, если явно не залезем в код сервиса
+- и т.д.
+
+Проблемы можно еще долго перечислять, давайте лучше перейдем к их решению.
 
 ### 3. "Любой термин доменной области должен быть выражен явно" и другие DDD практики
 
