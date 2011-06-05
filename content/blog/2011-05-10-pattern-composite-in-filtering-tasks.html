@@ -465,7 +465,7 @@
 
     // models/Domain/Book/Filter/Isbn.php
     namespace Domain\Book\Filter;
-    use Book;
+    use Domain\Book;
 
     class Isbn implements Specification
     {
@@ -484,10 +484,9 @@
 Нам также удобно будет немного допилить FilterChain, что он также поддерживал возможности специфицирования объектов. В коде это будет выглядить приблизительно так:
 
     namespace Domain\Book\Filter;
-
     use Domain\Book;
 
-    class FilterChain implements Filter, Specification
+    class Chain implements Filter, Specification
     {
         // ... some functions
 
@@ -496,7 +495,7 @@
                 // If one of filter in chain does not support specification,
                 // we should throw runtime exception
                 if (!$filter instanceof Specification) {
-                    throw new RuntimeException('Current filter chain does not support specification mechanism');
+                    throw new RuntimeException('Current filter does not support specification');
                 }
 
                 if (!$specification->isSatisfiedBy($entity)) {
