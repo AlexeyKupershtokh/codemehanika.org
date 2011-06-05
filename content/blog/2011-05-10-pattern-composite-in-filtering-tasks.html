@@ -200,22 +200,22 @@ _Composite pattern_ - структурный шаблон проектирова
 
 Итак, основная идея наших следующих действий: если пользователь передал запрос на поиск книги с ISBN (например) 978-5-8459-1597-9, то мы обернем это требование в экземпляр специального объекта Domain\Book\Filter\Isbn:
 
-    // models/Domain/Book/Filter/ChainInterface.php
-    namespace Domain\Book\Filter;
-
-    interface ChainInterface
-    {
-        // Реализация паттерна композит с поддержкой вложенных фильтров
-        public function appendFilter(ChainInterface $filter);
-        public function removeFilter($filterClassname);
-        public function getFilters();
-    }
-
     // models/Domain/Book/Filter/FilterInterface.php
     namespace Domain\Book\Filter;
 
     interface FilterInterface
     {
+        public function getCriteria();
+    }
+
+    // models/Domain/Book/Filter/ChainInterface.php
+    namespace Domain\Book\Filter;
+
+    interface ChainInterface extends FilterInterface
+    {
+        // Реализация паттерна композит с поддержкой вложенных фильтров
+        public function appendFilter(ChainInterface $filter);
+        public function removeFilter($filterClassname);
     }
 
     // models/Domain/Book/Filter/Chain.php
@@ -238,16 +238,31 @@ _Composite pattern_ - структурный шаблон проектирова
             }
         }
 
-        public function getFilters()
+        public function getCriteria()
         {
             return $this->_filters;
         }
     }
 
+    // models/Domain/Book/Filter/FilterAbsctract.php
+    namespace Domain\Book\Filter;
+
+    abstract class FilterAbsctract implements FilterInterface
+    {
+        // "Косим" под Chain
+        public function getCriteria()
+        {
+            return array($this);
+        }
+    }
+
+
     // models/Domain/Book/Filter/Isbn.php
     namespace Domain\Book\Filter as Filter;
 
-    class Isbn implements Filter\FilterInterface
+    class Isbn
+      extends Filter\FilterAbsctract
+      implements Filter\FilterInterface
     {
         protected $_isbn = '';
 
