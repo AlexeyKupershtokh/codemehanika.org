@@ -179,7 +179,7 @@
 - непрозрачность интерфейса функции findAll() - мы не узнаем какие могут быть $params, если явно не залезем в код сервиса
 - и т.д.
 
-Проблемы можно еще долго перечислять, давайте лучше перейдем к их решению.
+Проблемы можно еще долго перечислять, давайте лучше перейдем к их решению (с помощью специальных объектов-контейнеров Фильтров и Цепочек фильтров).
 
 ### 3. "Любой термин доменной области должен быть выражен явно" и другие DDD практики
 
@@ -195,11 +195,141 @@ _Спецификация_ - паттерн, позволяющий явно (с
 
 _Composite pattern_ - структурный шаблон проектирования, объединяет объекты в древовидную структуру предоставляя возможность использования единого интерфейса как для работы с иерархиями объектов, так и с листовыми объектами. Подробнее можно почитать на [Wikipedia](http://en.wikipedia.org/wiki/Composite_pattern). Этот паттерн является классическим и в DDD занимает важное место, выступая одним из основных механизмов следования принципу _Замкнутости операций_ (Closure of Operations). Основная идея: дать возможность пользователю объединять фильтры в некоторую цепочку (FilterChain), к которой можно прикреплять другие фильтры (appendFilter) или другие цепочки фильтров, и которая будет вести себя так, как будто представлять собой обычный фильтр (единый API). В итоге конечному пользователю (контроллеру, сервису, форме и т.д.) будет неважно с чем он работает - с фильтром или с их цепочкой.
 
-### 4. Сбор фильтров в формах и контроллерах
+### 4. Сбор фильтров в формах (или контроллерах)
+
+Итак, основная идея наших следующих действий: если пользователь передал запрос на поиск книги с ISBN (например) 978-5-8459-1597-9, то мы обернем это требование в экземпляр специального объекта Domain\Book\Filter\Isbn:
+
+    // models/Domain/Book/Filter/ChainInterface.php
+    namespace Domain\Book\Filter;
+
+    interface ChainInterface
+    {
+        // Реализация паттерна композит с поддержкой вложенных фильтров
+        public function appendFilter(ChainInterface $filter);
+        public function removeFilter($filterClassname);
+        public function getFilters();
+    }
+
+    // models/Domain/Book/Filter/FilterInterface.php
+    namespace Domain\Book\Filter;
+
+    interface FilterInterface
+    {
+    }
+
+    // models/Domain/Book/Filter/Chain.php
+    namespace Domain\Book\Filter;
+
+    class Chain implements ChainInterface
+    {
+        protected $_filters = array();
+
+        public function appendFilter(FilterInterface $filter)
+        {
+            $this->_filters[get_class($filter)] = $filter;
+            return $this;
+        }
+
+        public function removeFilter($filterClassname)
+        {
+            if (array_key_exists($filterClassname, $this->_filters) {
+                unset($this->_filters[$filterClassname]);
+            }
+        }
+
+        public function getFilters()
+        {
+            return $this->_filters;
+        }
+    }
+
+    // models/Domain/Book/Filter/Isbn.php
+    namespace Domain\Book\Filter as Filter;
+
+    class Isbn implements Filter\FilterInterface
+    {
+        protected $_isbn = '';
+
+        public function __construct($isbn) {
+            $this->_isbn = $isbn;
+            $this->validateMe();
+        }
+
+        public function getIsbn()
+        {
+            return $this->_isbn;
+        }
+
+        protected function validateMe()
+        {
+            if (!\Zend_Validate::is($this->_isbn, 'isbn')) {
+                throw new \InvalidArgumentException('Given ISBN number is invalid');
+                // полезно использовать свой класс для exception
+            }
+        }
+    }
+
+По сути, каждый фильтр будет представлять из себя а) контейнер для данных (условий) фильтрации, б) валидатор "допустимости" фильтровать именно по этим критериям. С этого момента, чтобы "выразить" необходимость найти книгу по конкретному ISBN, мы можем использовать
+
+    $isbnFilter = new Domain\Book\Filter\Isbn('978-5-8459-1597-9');
+
+Этот фильтр можно использовать в форме для организации валидации, и его же можно спокойно принимать в сервисе для организации поиска, не беспокоясь за целостность данных - теперь валидации "упакована" в одном объекте и представлена в коде явно.
+
+Все это было бы не сильно интересно, без возможности сделать такую штуку:
+
+    use Domain\Book\Filter as BookFilter;
+
+    /// ....
+
+    $filter = new BookFilter\Chain();
+    $filter->appendFilter(new BookFilter\Isbn('978-5-8459-1597-9'))
+           ->appendFilter(new BookFilter\Title('Domain Driven', BookFilter\Title::CONTAINS))
+           ->appendFilter(new BookFilter\Publisher('Вильямса', BookFilter\Publisher::EQUALS))
+           ->appendFilter(new BookFilter\Price(100, 10.000))
+           ->appendFilter(new BookFilter\Ebook(true));
+
+    // фантазирование на тему приветствуется
+    // ...
+
+    $bookCollection = $bookSeachService->findAllByFilter($filter);
+
+
+Все это удовольствие фильтр-удовольствие удобно собирать в коде формы. Если форма/ы не используется (например вы делаете external API) - то в контроллере. (Я уже слышу злобный шепот про "православный тонкий контроллер", поэтому те кто думает, что тонкий контроллер меряется количеством срок кода в нем - флаг вам в руки, выносите в отдельную службу и плодите abstract layers сколько влезет. На вкус и цвет все фломастеры все равно разные). В форме для удоства делаем функции buildFilter (собирает Chain по values из элементов). Если код такой процедуры будет слишком замороченным, то его можно вынести в отдельный класс, типа FormFilterBuilder. Также может возникнуть ситуация, когда мы работаем с готовым фильтром, полученным из некоторого внутреннего источника (например, - история поиска конкретного пользователя) - тогда пригодится еще обратный метод extractValuesFromFilter (из фильтра восстанавливает предустановленные значения полей формы). После чего выходим на такую схему работы контроллера:
+
+    // application/controllers/BookController.php
+    class BookController extends \Zend_Controller_Action
+    {
+        // .. некоторое экшены
+
+        public function searchAction()
+        {
+            $form = new Form\Book\Search();
+            $this->view->form = $form;
+            $this->view->results = \ArrayCollection();
+
+            // недопустимый запрос
+            if (!$this->_request->isGet()) {
+                throw new \Zend_Controller_Exception('GET request only');
+            }
+
+            // невалиданая форма
+            if (!$form->isValid($this->_getAllParams())) {
+                return;
+            }
+
+            // поисковый механизм
+            $searchService = new Domain\Book\SearchService();
+            $this->view->results = $searchService->findAllByFilter($form->buildFilter());
+        }
+
+        // .. другие экшены
+    }
+
+На самом деле, в описанной схеме есть где разгулятся фантазии программиста. Особенно в плане унификации и реиспользовании фильтров.
 
 ### 5. Использование фильтров на уровне репозитория
 
-Начну с этого, потому что это, вроде как, самая важная часть решаемой нами задачи. И так, контроллер передал в сервис filter, инкапсулирующий в себе всю информацию о запросе пользователя. Предположим пока для простоты, что репозиторий работает у нас с некоторой таблицей books в MySQL. Это значит, что теперь
+Начну с этого, потому что это, вроде как, самая важная часть решаемой нами задачи. Посмотрим, чтоже творится за занавесом вызова findAllByFilter(). И так, контроллер передал в сервис filter, инкапсулирующий в себе всю информацию о запросе пользователя.
 
 ### 6. Использование фильтров на уровне коллекции
 
