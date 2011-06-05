@@ -345,9 +345,86 @@ _Composite pattern_ - структурный шаблон проектирова
 
 ### 5. Использование фильтров на уровне репозитория
 
-Начну с этого, потому что это, вроде как, самая важная часть решаемой нами задачи. Посмотрим, чтоже творится за занавесом вызова findAllByFilter(). И так, контроллер передал в сервис filter, инкапсулирующий в себе всю информацию о запросе пользователя.
+Начну с этого, потому что это, вроде как, самая важная часть решаемой нами задачи. Посмотрим, чтоже творится за занавесом вызова findAllByFilter(). И так, контроллер передал в сервис filter, инкапсулирующий в себе всю информацию о запросе пользователя. А дальше у нас опять - "разброд и шатание", потому что вариантов и паттернов реализации логики работы приложений на этом уровне много - их вольных и несовсем трактований еще больше. И все же давайте попробуем разобраться в максимально общем случае.
 
-/// ....
+Если вы следуюете DDD-подходу, то у вас есть некий BookReporsitory, который инкапсулирует логику персестирования объектов сущностей, и, соответственно, именно он должен подготовить технический запрос на выборку из персист-хранилища. Сервим при этом не знает не только деталей хранения, он не подозревает где все это хранится: MySQL, Mongo или вообще в файлах сложено. Задача сервиса на данном этапе не лежит в плоскости поиска - она чисто "организационная":
+- проверить, что фильтр реализует нужный интерфейс и может быть использован,
+- проверить, что текущий пользователь имеет право на фильтрацию объектов в хранилище,
+- найти нужный репозитрий и передать этому репозиторию фильтр.
+
+В Doctrine2 все также можно организовать именно так. Если вы используете какой-то самописный Repository, или используете Data Mapper или... В любом случае, какую бы схему работы с данными вы не использовали, у вас все равно должен быть некий QueryBuilder, который готовит "технический" запрос (например, SQL). В той же доктрине этот QueryBuilder это явно существующий объект, в Zend Framework в качестве QueryBuilder может выступать объект Zend_Db_Table_Select. Получается, что наша задача свелась сейчас к получению рефлекции (отображения) данных из фильтра в QueryBuilder. Для решения этой задачи мы воспользуемся паттерном Медиатор. Основная идея: у нас будет один контейнер, который примет с одной стороны Filter, а с другой стороны пустой QueryBuilder, и перенесет информацию о запросе с одного на другой. Как этом может выглядеть в коде?
+
+    namespace Domain\Book\Persister;
+    use Domain\Book\Filter as BookFilter;
+
+    class BookRepository
+    {
+        // ...
+
+        public function findAllByFilter(BookFilter\FilterInterface $filter)
+        {
+            $queryBuilder = new QueryBuilder(); // or $this->getQueryBuilder();
+            $mediator = new FilterToBuilderReflection($filter, $queryBuilder);
+
+            return $this->query($mediator->reflect()->assemble());
+        }
+
+        // ...
+    }
+
+    namespace Domain\Book\Persister;
+    use Domain\Book\Filter as BookFilter;
+
+    class FilterToBuilderReflection
+    {
+        protected
+          $_filter = null,
+          $builder = null;
+
+        public function __construct(BookFilter\FilterInterface $filter, QueryBuilder $builder)
+        {
+            $this->_filter  = $filter;
+            $this->_builder = $builder;
+        }
+
+        public function reflect()
+        {
+            foreach($this->_filter->getCriteria() as $name => $filter) {
+                $reflectionClassname = "Query\{$name}Reflection";
+                $reflection = new $reflectionClassname($filter);
+
+                // "Замкнутость операции" отображения
+                $this->_builder = $reflection->reflect($this->_builder);
+            }
+
+            return $this->_builder;
+        }
+    }
+
+
+    namespace Domain\Book\Persister\Query;
+    use Domain\Book\Persister as Persister;
+    use Domain\Book\Filter as BookFilter;
+
+    class IsbnReflection
+    {
+        protected $_filter = null;
+
+        public function __construct(BookFilter\Isbn $filter)
+        {
+            $this->_filter = $filter;
+        }
+
+        public function reflect(Persister\QueryBuilder $builder)
+        {
+            $builder->where('isbn = ?', $filter->getIsbn());
+            return $builder;
+        }
+    }
+
+Что мы получили от подобной реализации:
+- структура хранилища инкапсулирована в небольших и легко тестируемых объектах, отделена от фильтров и сервиса
+- мы можем использовать несколько различных вариантов технической реализации выборки, просто добавив новый QueryBuilder со своими рефлекциями (например, добавить Sphing SE Query Builder)
 
 Сделаю еще одну небольшую, но важную ремарку. Использование подоного рода подхода выглядет более логичным и читабельным, чем использование dynamic finders. Т.е. вместо
 
@@ -411,7 +488,7 @@ _Composite pattern_ - структурный шаблон проектирова
         // ... some functions
 
         public function isSatisfiedBy(Book $entity) {
-            foreach($this->getFilters() as $specification) {
+            foreach($this->getCriteria() as $specification) {
                 // If one of filter in chain does not support specification,
                 // we should throw runtime exception
                 if (!$filter instanceof Specification) {
@@ -458,7 +535,7 @@ _Composite pattern_ - структурный шаблон проектирова
 
 ### 7. Вопросы?
 
-P.S. Код приведен AS IS и не претендует на абсолютную архитектурную и идеологическую (или любую другую) граммотность. Мнение читателя может расходится с мнение автора, равно как и опыт и подходы к использованию различных паттернов проектирования.
+P.S. Код приведен AS IS и не претендует на абсолютную архитектурную и идеологическую (или любую другую) граммотность. В коде много "недоработок" в плане соблюдения правил getter/setter, контроля за ошибками и т.д. - все это сделано с целью дистиллировать из кода основную суть. Детали можно доделать всегда. Мнение читателя может расходится с мнение автора, равно как и опыт и подходы к использованию различных паттернов проектирования.
 
 {% endblock %}
 
