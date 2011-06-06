@@ -252,7 +252,7 @@
     // models/Domain/Book/Filter/FilterAbstract.php
     namespace Domain\Book\Filter;
 
-    abstract class FilterAbsctract implements FilterInterface
+    abstract class FilterAbstract implements FilterInterface
     {
         // "Косим" под Chain
         public function getCriteria()
@@ -266,7 +266,7 @@
     namespace Domain\Book\Filter as Filter;
 
     class Isbn
-      extends Filter\FilterAbsctract
+      extends Filter\FilterAbstract
       implements Filter\FilterInterface
     {
         protected $_isbn = '';
@@ -474,7 +474,7 @@
     use Domain\Book;
 
     class Isbn
-      extends    Filter\FilterAbsctract
+      extends    Filter\FilterAbstract
       implements Filter\FilterInterface,
                  Specification
     {
