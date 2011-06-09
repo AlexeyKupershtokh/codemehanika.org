@@ -22,6 +22,7 @@
    {%block entry_extra%}{%endblock%}
    <content type="html">
        {%filter force_escape%}{{ node_page.snip }}{%endfilter%}
+       <br /><br /><a href="{{node_page.full_url}}">{{node_page.title}}</a>
    </content>
  </entry>
  {%endif%}
