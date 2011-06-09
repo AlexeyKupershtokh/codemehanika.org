@@ -21,7 +21,7 @@
    <id>{{node_page.full_url}}</id>
    {%block entry_extra%}{%endblock%}
    <content type="html">
-       {%filter force_escape%}{% node_page.snip %}{%endfilter%}
+       {%filter force_escape%}{{ node_page.snip }}{%endfilter%}
    </content>
  </entry>
  {%endif%}
