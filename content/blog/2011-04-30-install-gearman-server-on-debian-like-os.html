@@ -12,7 +12,7 @@
 {% block article %}
 Можно просто скопировать и вставить в консоль. Команды будут выполнены по очереди. Также для удобства залил в отдельный gist-файл, так что можно использовать в одну консоль-строку:
 
-    wget -qO - https://raw.github.com/gist/1022911/cc173edf6437ba4682f0cfdfd36d1c06d71c6c63/gearman-install.sh | bash
+    wget -qO - https://raw.github.com/gist/1022911/46b91e4a3c855e274dffed454f2199fb96894f25/gearman-install.sh | bash
 
 Поблочная схема:
 
@@ -31,7 +31,7 @@
     wget http://launchpad.net/gearmand/trunk/0.18/+download/gearmand-0.18.tar.gz
     tar -xvzf gearmand-0.18.tar.gz
     cd gearmand-0.18/
-    apt-get install libboost-program-options-dev, uuid-dev, libevent-dev
+    apt-get install libboost-program-options-dev uuid-dev libevent-dev
     ./configure && sudo make && sudo make install
     ldconfig
 
