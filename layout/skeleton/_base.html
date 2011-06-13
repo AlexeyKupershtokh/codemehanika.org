@@ -29,6 +29,7 @@
         <link rel="stylesheet" href="/media/css/blueprint/print.css" type="text/css" media="print">
         <!--[if lt IE 8]><link rel="stylesheet" href="/media/css/blueprint/ie.css" type="text/css" media="screen, projection"><![endif]-->
         <link rel="stylesheet" href="/media/css/app.css" type="text/css" media="screen, projection">
+        <link rel="stylesheet" href="http://yandex.st/highlightjs/6.0/styles/sunburst.min.css">
     {% endblock %}
     <link href="http://feeds.feedburner.com/codemehanika" rel="alternate" title="Feed / {{ site.name }}" type="application/rss+xml" />
 
@@ -51,6 +52,8 @@
 
     {% block js %}
         <script type="text/javascript" src="http://code.jquery.com/jquery-1.5.2.min.js"></script>
+        <script src="http://yandex.st/highlightjs/6.0/highlight.min.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script>
         {% block additional_js %}{% endblock %}
     {% endblock %}
 </html>
