@@ -2,13 +2,44 @@
 
 {% hyde
     title: Установка Gearman сервера на Ubuntu/Debian
-    created: 2011-04-30
-    published: False
+    created: 2011-05-28
+    published: True
     categories: Memory notes
-    display_in_list: False
+    display_in_list: True
+    snip: Gearman server использую в своей работе очень активно, поэтому достаточно часто сталкиваюсь с задачей его установки и обеспечения возможности взаимодействовать с gearman сервером со стороны PHP кода. Вроде бы процедура не сложная, но количество телодвижений все равно угнетает. К тому же на разных серверах постоянно случаются приключения, то uuid dev оказывается не установлен, то libboost работает не так, как нужно. С оглядки на все это, собрал в один bash скрипт всю процедуру скачивания и комплирирования Gearman 0.18 и PECL extension gearman-0.7.0. Надеюсь, это кому-нибудь сэкономит минуты работы и нервы.
 %}
 
 {% block article %}
-Тут будет статья
+Можно просто скопировать и вставить в консоль. Команды будут выполнены по очереди.
+По блочная схема:
+
+* переходим в директорию lib
+* скачиваем архив с source-ами, вытаскиваем содержимое
+* проверяем наличие и доустанавливаем библиотеки, необходимые для нормального компилирования
+* собираем и инсталлируем
+* скачиваем архив PECT extension, извлекаем из архива
+* собираем расширение, регистрируем extension в файлах конфигурации php5
+
+    sudo bash
+
+    cd /usr/local/lib
+    wget http://launchpad.net/gearmand/trunk/0.18/+download/gearmand-0.18.tar.gz
+    tar -xvzf gearmand-0.18.tar.gz
+    cd gearmand-0.18/
+    apt-get install libboost-program-options-dev, uuid-dev, libevent-dev
+    ./configure && sudo make && sudo make install
+    ldconfig
+
+    pecl download gearman-0.7.0
+    tar -xvf gearman-0.7.0.tgz
+    cd gearman-0.7.0
+    phpize
+    ./configure && make && make install
+    echo 'extension=gearman.so' > /etc/php5/conf.d/gearman.ini
+
+    gearmand -d -u root
+
+И последнее - запускаем Gearman демона от имени root-пользователя. Если нужно запустить от другого пользователя - просто поправьте последнюю команду в списке.
+
 {% endblock %}
 
