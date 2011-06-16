@@ -41,12 +41,103 @@
 
 Из Django нам понадобится только ORM. Но установить все равно придется весь фреймворк. Для инсталляции Django существует очень много способов, в зависимости от платформы и ваших личных предпочтений. Обо всех можно узнать в [документации](https://docs.djangoproject.com/en/1.3/intro/install/). Проверить успешность установки можно в интерактивном сеансе Python:
 
+    $ python
+    Python 2.7.1+ (r271:86832, Apr 11 2011, 18:13:53)
+    [GCC 4.5.2] on linux2
+    Type "help", "copyright", "credits" or "license" for more information.
     >>> import django
     >>> print django.get_version()
     1.3
 
+Если Django был установлен не корректно, то после команды `import django` вы поймаете exception.
+Поскольку мы будем работать с MySQL базой данных, нужно установить библиотеку для работы с этой базой данных. Проще всего через easy_install или pip:
+
+    pip install MySQL-python
+
+**Nginx**
+
+
 
 ### 3. Код сервера
+
+Давайте теперь напишем кода нашего сервера. Как я и говорил выше, нам понадобится только один небольшой файл - suggest.py - код можно посмотреть в ветке [tornado на github](https://github.com/kachayev/zfconf-speech/blob/tornado/suggest.py) или ниже с подробными комментариями всего происходящего.
+
+    # Импортируем необходимые для работы tornado
+    import sys, os
+    import tornado.httpserver, tornado.ioloop, tornado.web
+    from  tornado.escape import json_encode
+
+    # Django settings
+    # Весь файл настроек нам не нужен сейчас, сейчас понядобятся только настройки базы данных,
+    # поэтому именно их мы и передаем в метод configure: name, user, password (укажите свои)
+    # Пустые строки в качестве параметров DATABASE_HOST и DATABASE_PORT означают использование
+    # дефолтных (localhost и 3306 соответственно). При необходимости - подставьте свои.
+    from django.conf import settings
+    settings.configure(DATABASE_ENGINE='mysql', DATABASE_NAME='zfconf',
+                       DATABASE_USER='root', DATABASE_PASSWORD='kachayev',
+                       DATABASE_HOST = '', DATABASE_PORT = '')
+
+    # Создаем класс Django модели для работы с таблицей speech_tag
+    from django.db import models
+    class Tag(models.Model):
+        """
+        Define model Tag for switching from database LIKE tags
+        """
+
+        # Описание полей таблицы, speech_id нам по факту не пригодится
+        speech_id = models.IntegerField()
+        text = models.CharField(max_length=50)
+
+        # Meta данные для нормальной работы ORM,
+        # сюда же можно добавить дефолтную сортировку и другие настройки
+        class Meta:
+            app_label = 'speech'
+            db_table = 'speech_tag'
+
+        # Текстовое представление для класса модели
+        def __unicode__(self):
+            return self.text
+
+    # Класс обработчика запроса
+    # Наследник класса tornado.web.RequestHandler
+    class TagsSuggestHandler(tornado.web.RequestHandler):
+        """
+        Handler for GET HTTP request for tags suggestion
+        """
+        # Обрабатываем GET запросы
+        def get(self):
+            # Достаем из запроса q параметр (запрос выглядит /suggest?q=tag)
+            # Значение параметра будет отдано как list, поэтому мы сразу достаем 0й элемент
+            # По факту, мы могли бы сделать эту процедуру более защищенной
+            # и бросать ошибку в случае отсутствующего или пустого q параметра,
+            # а также в случае получения запроса вида /suggest?q[]=tag1&q[]=tag2
+            query = self.request.arguments.get('q', [''])[0]
+
+            # Сообщаем браузеру о том, что это вовсе не HTML, а JSON
+            self.set_header("Content-Type", "application/json")
+
+            # В следующей строчке состредоточена большая часть написанной нами логики
+            # json_encode кодирует list в JSON формат, а метод write добавляет контент в response
+            # Генератор списка, переданный в json_encode делает следующее:
+            # 1. получает теги из таблицы speech_tag запросом LIKE (переданный менеджеру фильтр text__icontains)
+            # 2. для каждого объекта Tag добавляем в JSON новый item вида {value: tag.text}
+            self.write(json_encode([{'value': tag.text} for tag in Tag.objects.filter(text__icontains=query)]))
+
+    # Создаем объект Web Application, определяеющий правила роутинга хендлеров
+    # с одним единственным правилом: /suggest* запрос будет обработан хендлером TagsSuggestHandler
+    application = tornado.web.Application({
+        (r'/suggest', TagsSuggestHandler),
+    })
+
+    if __name__ == '__main__':
+        # Создаем объект сервера, передавая в констркутор HTTPServer объект Web Application
+        http_server = tornado.httpserver.HTTPServer(application)
+        # Биндим сервер к 8888 порту (можете использовать любой другой свободный)
+        http_server.listen(8888)
+        # Запускаем основной Loop
+        tornado.ioloop.IOLoop.instance().start()
+
+
 ### 4. Запуск сервера
 ### 5. Тесты и подведение итогов
 {% endblock %}
