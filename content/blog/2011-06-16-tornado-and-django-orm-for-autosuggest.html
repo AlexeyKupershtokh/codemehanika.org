@@ -54,8 +54,17 @@
 
     pip install MySQL-python
 
+
 **Nginx**
 
+Скорее всего, эта штука у вас уже есть. Nginx как и раньше будет выполнять у нас роль "военачальника" и висеть на фронтенде, распределяя запросы по backend обработчикам. В ветке `tornado` я добавил в конфигурацию nginx-а один дополнительный редирект:
+
+	  location ^~ /suggest {
+		  proxy_pass http://localhost:8888/suggest;
+	  }
+
+Посмотреть на [github](https://github.com/kachayev/zfconf-speech/blob/tornado/infrastructure/nginx/zfconf#L23
+). Соответственно, в файле [/public/js/interface.js](https://github.com/kachayev/zfconf-speech/blob/tornado/public/js/interface.js#L11) поменялся `serviceUrl` параметр.
 
 
 ### 3. Код сервера
