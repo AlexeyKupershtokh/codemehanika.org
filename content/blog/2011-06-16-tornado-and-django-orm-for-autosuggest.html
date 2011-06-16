@@ -12,6 +12,40 @@
 {% block article %}
 ### 1. Формулировка задачи
 ### 2. Подготовка инфраструктуры
+
+**Python**
+
+Собственно, на этом языке программирования мы будем писать функционал. Как установить Python можно почитать в [официальной доке](http://www.python.org/getit/) или в том же [Dive Into Python](http://diveintopython.org/installing_python/index.html#install.choosing). Нам понадобится версия из ветки 2.*, желательно 2.7.*. Проверить, что все установилось без проблем можно вызовом интерактивной консоли командой
+
+    $ python
+    Python 2.7.1+ (r271:86832, Apr 11 2011, 18:13:53)
+    [GCC 4.5.2] on linux2
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>>
+
+
+**Tornado**
+
+Для решения задачи мы возьмем асинхронный сервер на Python - [Tornado](http://www.tornadoweb.org/). Почему именно этот? Ну, во-первых, он очень простой (на порядок проще того же Twisted). А, во-вторых, результаты [нагрузочных тестов](http://nichol.as/asynchronous-servers-in-python) красноречиво говорят сами за себя. Установить Tornado не сложно:
+
+    wget http://github.com/downloads/facebook/tornado/tornado-1.2.1.tar.gz
+    tar xvzf tornado-1.2.1.tar.gz
+    cd tornado-1.2.1
+    python setup.py build
+    sudo python setup.py install
+
+
+Для нормальной работы tornado сервера нам также могут понадобится некоторые библиотеки, типа pycurl. О том как их устанавливать на различных платформах читаем в [официальной документации](http://www.tornadoweb.org/documentation#download-and-install).
+
+**Django**
+
+Из Django нам понадобится только ORM. Но установить все равно придется весь фреймворк. Для инсталляции Django существует очень много способов, в зависимости от платформы и ваших личных предпочтений. Обо всех можно узнать в [документации](https://docs.djangoproject.com/en/1.3/intro/install/). Проверить успешность установки можно в интерактивном сеансе Python:
+
+    >>> import django
+    >>> print django.get_version()
+    1.3
+
+
 ### 3. Код сервера
 ### 4. Запуск сервера
 ### 5. Тесты и подведение итогов
