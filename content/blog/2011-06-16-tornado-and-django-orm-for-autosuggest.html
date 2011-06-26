@@ -95,6 +95,7 @@
 
 Давайте теперь напишем кода нашего сервера. Как я и говорил выше, нам понадобится только один небольшой файл - suggest.py - код можно посмотреть в ветке [tornado на github](https://github.com/kachayev/zfconf-speech/blob/tornado/suggest.py) или ниже с подробными комментариями всего происходящего.
 
+    # -*- coding: utf8 -*-
     # Импортируем необходимые для работы tornado
     import sys, os
     import tornado.httpserver, tornado.ioloop, tornado.web
@@ -161,9 +162,9 @@
 
     # Создаем объект Web Application, определяеющий правила роутинга хендлеров
     # с одним единственным правилом: /suggest* запрос будет обработан хендлером TagsSuggestHandler
-    application = tornado.web.Application({
+    application = tornado.web.Application([
         (r'/suggest', TagsSuggestHandler),
-    })
+    ])
 
     if __name__ == '__main__':
         # Создаем объект сервера, передавая в констркутор HTTPServer объект Web Application
