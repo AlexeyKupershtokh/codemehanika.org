@@ -39,10 +39,11 @@
     wget http://launchpad.net/gearmand/trunk/0.18/+download/gearmand-0.18.tar.gz
     tar -xvzf gearmand-0.18.tar.gz
     cd gearmand-0.18/
-    apt-get install libboost-program-options-dev uuid-dev libevent-dev
+    apt-get install libboost-program-options-dev uuid-dev libevent-dev build-essential g++
     ./configure && sudo make && sudo make install
     ldconfig
 
+    apt-get install php5-dev php-pear
     pecl download gearman-0.7.0
     tar -xvf gearman-0.7.0.tgz
     cd gearman-0.7.0
@@ -51,6 +52,8 @@
     echo 'extension=gearman.so' > /etc/php5/conf.d/gearman.ini
 
     gearmand -d -u root
+
+*Update*: Обновил немного код после нескольких установок на свежих серверах. Если заметите еще какие-нибудь проблемные ситуации, пишите в комментариях к [gist](https://gist.github.com/1022911)-у.
 
 {% endblock %}
 
