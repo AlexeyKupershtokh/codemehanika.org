@@ -1,0 +1,108 @@
+{% extends '_post.html' %}
+
+{% hyde
+    title: Torando server graceful stop
+    created: 2011-10-28
+    published: True
+    categories: Python, Tornado
+    display_in_list: False
+    snip: "Задача плавной остановки совершенно естественна для любого web сервера. Суть заключается в том, что при получении системного сигнала о необходимости остановки, мы должны аккуратно доработать со всеми уже открытыми соединениями, а не выкинуть им 302/500 ошибку. Здесь я рассмотрю правильную реализацию плавной оставноки Tornado сервера."
+%}
+
+{% block article %}
+
+### Intro
+
+Чтобы правильно решить задачу, давайте ее сначала правильно сформулируем. Итак, мы хотим, чтобы при выполнении 
+
+    sudo kill -TERM <TORNADO_PROCESS_PID>
+
+(terminate) ``tornado`` сервер перестал принимать новые запросы, а уже открытым соединениям вернул ответ и закончил работу. На самом деле, это только один из возможных вариантов в процессе обработки сигналов. Вполне возможно, что вы захотите научить сервер реагировать на другие систмные сигналы, типа ``HUP``, ``INT``, ``USR1`` и т.д. Но давайте разберем эту ситуацию, остальные решаются по аналогии.
+
+### Signals
+
+Для обработки сигналов, в ``python`` используется модуль [``singal``](http://docs.python.org/library/signal.html). Простейший код перехватки сигнала будет выглядить следующим образом:
+
+    import signal
+    
+    def handler(sig, frame):
+        # you can perform some actions here 
+        print sig
+
+    signal.signal(signal.SIGTERM, handler)
+
+Думаю код интуитивно понятен и не нуждается в дополнительных пояснениях.
+
+### I/O loop callbacks
+
+Дальше нам нужно учесть два момента. Во-первых, signal может быть получен в любой момент выполнения кода. Единственное, что мы можем сделать из handler-а не беспокоясь за судьбу control flow - навесить callback на i/o loop методом [``add_callback``](http://www.tornadoweb.org/documentation/ioloop.html#tornado.ioloop.IOLoop.add_callback). Пояснение этого факта можно найти в документации Tornado:
+
+> *add_callback*
+
+> ...
+
+> It is safe to call this method from any thread at any time. Note that this is the only method in IOLoop that makes this guarantee; all other interaction with the IOLoop must be done from that IOLoop’s thread. add_callback() may be used to transfer control from other threads to the IOLoop’s thread.
+
+Во-вторых, нужно учитывать, что stop ``i/o loop`` приведет к тому, что сервер не отдаст response по тем, запросам, которые уже были приняты. Правильный способ "остановки" заключается в том, что в момент получения сигнала мы должны остановить ``http server`` (перестанем принимать запросы) + добавить callback на оставновку ``i/o loop``, который будет вызван через некоторое время, например, через пару секунд. Сделать это можно с помощью [``add_timeout``](http://www.tornadoweb.org/documentation/ioloop.html#tornado.ioloop.IOLoop.add_timeout), не забывая что первый параметр - это deadline, а не время ожидания :)
+
+### В целом
+
+В результате мы должны получить приблизительно такой код (очень грубо). 
+
+    import time 
+    import signal
+    import logging
+    
+    from tornado.ioloop import IOLoop
+    from tornado.httpserver import HTTPServer
+
+    def sig_handler(sig, frame):
+        """Catch signal and init callback"""
+        logging.warning('Caught signal: %s', sig)
+        IOLoop.instance().add_callback(shutdown)
+
+    def shutdown(): 
+        """Stop server and add callback to stop i/o loop"""
+        logging.info('Stopping http server')
+        server.stop() 
+
+        logging.info('Will shutdown in 2 seconds ...')
+        io_loop = IOLoop.instance()
+        io_loop.add_timeout(time.time() + 2, io_loop.stop) 
+
+    def main(): 
+        # You can use more useful approach for this,
+        # but this is just simple example 
+        global server 
+        
+        # Lets imagine that you already have application and port vars
+        server = HTTPServer(application)
+        server.listen(port) 
+
+        # Init signals handler
+        signal.signal(signal.SIGTERM, shutdown) 
+
+        # Starting ...
+        IOLoop.instance().start() 
+        
+    if __name__ == '__main__':
+        main()
+
+Комментарии по коду расставлены. Не уверен, что запустится в таком виде, точнее уверен что не запустится. Поэтому простое копирование себе в проект не спасет :) К тому же, инициализация и запуск сервера(-ов) в реальном проекте выглядит позапутаней и не было смысла вносить эту запутанность в пример, посвященный совершенно другим вещам.
+
+### KeyboardInterrupt
+
+KeyboardInterrupt exception является еще одним случаем прерывания работы сервера. Возникает оно в ситуации, когда вы запустили приложение в терминале, а потом нажали ^C. Такую ситуацию можно обрабатывать аналогично, если вспомнить, что ^C приведет к тому, что система отправит процессу INT signal (который ``python`` любезно перехватит и выбросит KeyboardInterrupt). Все, что нам нужно здесь сделать - добавить свой обработчик для signal.SIGINT вместо дефолтного.
+
+    # ...
+
+    # Init signals handler
+    signal.signal(signal.SIGTERM, shutdown) 
+    signal.signal(signal.SIGINT, shutdown) 
+    
+    # ...
+
+P.S. Так уж получилось, что на недавнем PyCon я выступил одним из "защитников" ``Tornado``. И это ответ на весьма распространенную претензию о том, что ``Tornado`` не имеет режимов graceful stop/restart и вообще не умеет нормально выключатся. В ближайшее время постараюсь выделить время на еще несколько ответов.
+
+{% endblock %}
+
