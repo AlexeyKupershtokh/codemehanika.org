@@ -5,7 +5,7 @@
     created: 2011-10-28
     published: True
     categories: Python, Tornado
-    display_in_list: False
+    display_in_list: True
     snip: "Задача плавной остановки совершенно естественна для любого web сервера. Суть заключается в том, что при получении системного сигнала о необходимости остановки, мы должны аккуратно доработать со всеми уже открытыми соединениями, а не выкинуть им 302/500 ошибку. Здесь я рассмотрю правильную реализацию плавной оставноки Tornado сервера."
 %}
 
@@ -21,7 +21,7 @@
 
 ### Signals
 
-Для обработки сигналов, в ``python`` используется модуль [``singal``](http://docs.python.org/library/signal.html). Простейший код перехватки сигнала будет выглядить следующим образом:
+Для обработки сигналов, в ``python`` используется модуль [``signal``](http://docs.python.org/library/signal.html). Простейший код перехватки сигнала будет выглядить следующим образом:
 
     import signal
     
@@ -35,15 +35,13 @@
 
 ### I/O loop callbacks
 
-Дальше нам нужно учесть два момента. Во-первых, signal может быть получен в любой момент выполнения кода. Единственное, что мы можем сделать из handler-а не беспокоясь за судьбу control flow - навесить callback на i/o loop методом [``add_callback``](http://www.tornadoweb.org/documentation/ioloop.html#tornado.ioloop.IOLoop.add_callback). Пояснение этого факта можно найти в документации Tornado:
+Дальше нам нужно учесть два момента. Во-первых, signal может быть получен в любой момент выполнения кода. Единственное, что мы можем сделать из handler-а не беспокоясь за судьбу control flow - навесить callback на ``i/o loop`` методом [``add_callback``](http://www.tornadoweb.org/documentation/ioloop.html#tornado.ioloop.IOLoop.add_callback). Пояснение этого факта можно найти в документации ``Tornado``:
 
-> *add_callback*
+**add_callback**
 
-> ...
+> ... It is safe to call this method from any thread at any time. Note that this is the only method in IOLoop that makes this guarantee; all other interaction with the IOLoop must be done from that IOLoop’s thread. add_callback() may be used to transfer control from other threads to the IOLoop’s thread.
 
-> It is safe to call this method from any thread at any time. Note that this is the only method in IOLoop that makes this guarantee; all other interaction with the IOLoop must be done from that IOLoop’s thread. add_callback() may be used to transfer control from other threads to the IOLoop’s thread.
-
-Во-вторых, нужно учитывать, что stop ``i/o loop`` приведет к тому, что сервер не отдаст response по тем, запросам, которые уже были приняты. Правильный способ "остановки" заключается в том, что в момент получения сигнала мы должны остановить ``http server`` (перестанем принимать запросы) + добавить callback на оставновку ``i/o loop``, который будет вызван через некоторое время, например, через пару секунд. Сделать это можно с помощью [``add_timeout``](http://www.tornadoweb.org/documentation/ioloop.html#tornado.ioloop.IOLoop.add_timeout), не забывая что первый параметр - это deadline, а не время ожидания :)
+Во-вторых, нужно учитывать, что stop ``i/o loop`` приведет к тому, что сервер не отдаст response по тем запросам, которые уже были приняты. Правильный способ "остановки" заключается в том, что в момент получения сигнала мы должны остановить ``http server`` (перестанем принимать запросы) + добавить callback на оставновку ``i/o loop``, который будет вызван через некоторое время, например, через пару секунд. Сделать это можно с помощью [``add_timeout``](http://www.tornadoweb.org/documentation/ioloop.html#tornado.ioloop.IOLoop.add_timeout), не забывая что первый параметр - это deadline, а не время ожидания :)
 
 ### В целом
 
@@ -88,11 +86,11 @@
     if __name__ == '__main__':
         main()
 
-Комментарии по коду расставлены. Не уверен, что запустится в таком виде, точнее уверен что не запустится. Поэтому простое копирование себе в проект не спасет :) К тому же, инициализация и запуск сервера(-ов) в реальном проекте выглядит позапутаней и не было смысла вносить эту запутанность в пример, посвященный совершенно другим вещам.
+Комментарии по коду расставлены. Не уверен, что запустится в таком виде. Точнее уверен, что не запустится. Поэтому простое копирование себе в проект не спасет :) К тому же, инициализация и запуск сервера(-ов) в реальном проекте выглядит запутаней и не было смысла вносить эту запутанность в пример, посвященный совершенно другим вещам.
 
 ### KeyboardInterrupt
 
-KeyboardInterrupt exception является еще одним случаем прерывания работы сервера. Возникает оно в ситуации, когда вы запустили приложение в терминале, а потом нажали ^C. Такую ситуацию можно обрабатывать аналогично, если вспомнить, что ^C приведет к тому, что система отправит процессу INT signal (который ``python`` любезно перехватит и выбросит KeyboardInterrupt). Все, что нам нужно здесь сделать - добавить свой обработчик для signal.SIGINT вместо дефолтного.
+``KeyboardInterrupt exception`` является еще одним случаем прерывания работы сервера. Возникает оно в ситуации, когда вы запустили приложение в терминале, а потом нажали ``^C``. Такую ситуацию можно обрабатывать аналогично, если вспомнить, что ``^C`` приведет к тому, что система отправит процессу ``INT`` signal (который ``python`` любезно перехватит и выбросит ``KeyboardInterrupt``). Все, что нам нужно здесь сделать - добавить свой обработчик для ``signal.SIGINT`` вместо дефолтного.
 
     # ...
 
