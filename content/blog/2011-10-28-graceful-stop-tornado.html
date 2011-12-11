@@ -78,7 +78,9 @@
         server.listen(port) 
 
         # Init signals handler
-        signal.signal(signal.SIGTERM, shutdown) 
+        signal.signal(signal.SIGTERM, sig_handler) 
+        # This will also catch KeyboardInterrupt exception
+        signal.signal(signal.SIGINT, sig_handler) 
 
         # Starting ...
         IOLoop.instance().start() 
